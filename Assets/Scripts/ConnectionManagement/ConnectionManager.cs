@@ -19,8 +19,8 @@ namespace Unity.BossRoom.ConnectionManagement
         Reconnecting,             //client lost connection and is attempting to reconnect.
         IncompatibleBuildType,    //client build type is incompatible with server.
         HostEndedSession,         //host intentionally ended the session.
-        StartHostFailed,          // server failed to bind
-        StartClientFailed         // failed to connect to server and/or invalid network endpoint
+        StartHostFailed,          // 【译】服务器绑定失败
+        StartClientFailed         // 【译】无法连接到服务器，或者网络端点无效
     }
 
     public struct ReconnectMessage
@@ -50,8 +50,8 @@ namespace Unity.BossRoom.ConnectionManagement
     }
 
     /// <summary>
-    /// This state machine handles connection through the NetworkManager. It is responsible for listening to
-    /// NetworkManger callbacks and other outside calls and redirecting them to the current ConnectionState object.
+    /// 【译】这个状态机通过 NetworkManager 处理连接流程。
+    /// 【译】它负责监听 NetworkManager 的回调和外部调用，并把它们转发给当前的 ConnectionState 对象。
     /// </summary>
     public class ConnectionManager : MonoBehaviour
     {
@@ -71,6 +71,8 @@ namespace Unity.BossRoom.ConnectionManagement
 
         public int MaxConnectedPlayers = 8;
 
+        // 【译】连接流程采用“状态机”来管理，不同状态分别处理断线、连接中、已连接、主机启动等场景。
+        // 【译】这里先把所有状态对象创建好，后面只需要在它们之间切换即可。
         internal readonly OfflineState m_Offline = new OfflineState();
         internal readonly ClientConnectingState m_ClientConnecting = new ClientConnectingState();
         internal readonly ClientConnectedState m_ClientConnected = new ClientConnectedState();
@@ -88,11 +90,14 @@ namespace Unity.BossRoom.ConnectionManagement
             List<ConnectionState> states = new() { m_Offline, m_ClientConnecting, m_ClientConnected, m_ClientReconnecting, m_StartingHost, m_Hosting };
             foreach (var connectionState in states)
             {
+                // 【译】让 VContainer 把这些状态对象需要的依赖注入进来
                 m_Resolver.Inject(connectionState);
             }
 
+            // 【译】默认从离线状态开始，等待玩家主动发起连接或开主机。
             m_CurrentState = m_Offline;
 
+            // 【译】网络回调统一转发给当前状态处理，ConnectionManager 本身只负责“路由”。
             NetworkManager.OnConnectionEvent += OnConnectionEvent;
             NetworkManager.OnServerStarted += OnServerStarted;
             NetworkManager.ConnectionApprovalCallback += ApprovalCheck;
@@ -115,6 +120,7 @@ namespace Unity.BossRoom.ConnectionManagement
 
             if (m_CurrentState != null)
             {
+                // 【译】先退出旧状态，再进入新状态，避免两个状态同时在做事。
                 m_CurrentState.Exit();
             }
             m_CurrentState = nextState;
@@ -123,6 +129,7 @@ namespace Unity.BossRoom.ConnectionManagement
 
         void OnConnectionEvent(NetworkManager networkManager, ConnectionEventData connectionEventData)
         {
+            // 【译】把具体的连接/断开事件交给当前状态自己决定怎么处理。
             switch (connectionEventData.EventType)
             {
                 case ConnectionEvent.ClientConnected:
@@ -149,7 +156,7 @@ namespace Unity.BossRoom.ConnectionManagement
             m_CurrentState.OnTransportFailure();
         }
 
-        void OnServerStopped(bool _) // we don't need this parameter as the ConnectionState already carries the relevant information
+        void OnServerStopped(bool _) // 【译】这里不需要这个参数，因为 ConnectionState 已经携带了所需信息
         {
             m_CurrentState.OnServerStopped();
         }

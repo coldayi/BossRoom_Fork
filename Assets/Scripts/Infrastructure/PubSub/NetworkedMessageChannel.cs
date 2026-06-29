@@ -7,8 +7,8 @@ using VContainer;
 namespace Unity.BossRoom.Infrastructure
 {
     /// <summary>
-    /// This type of message channel allows the server to publish a message that will be sent to clients as well as
-    /// being published locally. Clients and the server both can subscribe to it.
+    /// 【译】这种消息通道允许服务器发布消息时，同时把消息发送给客户端并在本地也发布一份。
+    /// 【译】客户端和服务器都可以订阅它。
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public class NetworkedMessageChannel<T> : MessageChannel<T> where T : unmanaged, INetworkSerializeByMemcpy
@@ -26,6 +26,7 @@ namespace Unity.BossRoom.Infrastructure
         void InjectDependencies(NetworkManager networkManager)
         {
             m_NetworkManager = networkManager;
+            // 【译】监听连接事件，这样新客户端进来后也能及时注册接收消息的处理器。
             m_NetworkManager.OnConnectionEvent += OnConnectionEvent;
             if (m_NetworkManager.IsListening)
             {
@@ -56,7 +57,7 @@ namespace Unity.BossRoom.Infrastructure
 
         void RegisterHandler()
         {
-            // Only register message handler on clients
+            // 【译】服务器负责发送消息，客户端负责接收消息，所以这里只在客户端注册网络回调。
             if (!m_NetworkManager.IsServer)
             {
                 m_NetworkManager.CustomMessagingManager.RegisterNamedMessageHandler(m_Name, ReceiveMessageThroughNetwork);
@@ -67,7 +68,7 @@ namespace Unity.BossRoom.Infrastructure
         {
             if (m_NetworkManager.IsServer)
             {
-                // send message to clients, then publish locally
+                // 【译】服务器先把消息广播给客户端，再在本地也发布一份，保证服务器逻辑能直接订阅到。
                 SendMessageThroughNetwork(message);
                 base.Publish(message);
             }
@@ -79,8 +80,7 @@ namespace Unity.BossRoom.Infrastructure
 
         void SendMessageThroughNetwork(T message)
         {
-            // Avoid throwing an exception if you are in the middle of shutting down and either
-            // NetworkManager no longer exists or the CustomMessagingManager no longer exists.
+            // 【译】关服/断线过程中，NetworkManager 可能已经销毁了，所以这里先做空检查，避免退出时报错。
             if (m_NetworkManager == null || m_NetworkManager.CustomMessagingManager == null)
             {
                 return;

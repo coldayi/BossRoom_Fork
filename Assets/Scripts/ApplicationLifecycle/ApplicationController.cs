@@ -18,7 +18,7 @@ using VContainer.Unity;
 namespace Unity.BossRoom.ApplicationLifecycle
 {
     /// <summary>
-    /// An entry point to the application, where we bind all the common dependencies to the root DI scope.
+    /// 【译】应用程序的入口点，在这里把所有通用依赖绑定到根 DI 容器中。
     /// </summary>
     public class ApplicationController : LifetimeScope
     {
@@ -37,12 +37,12 @@ namespace Unity.BossRoom.ApplicationLifecycle
         protected override void Configure(IContainerBuilder builder)
         {
             base.Configure(builder);
+            // 这里是整个应用的“根 DI 容器”，负责注册跨场景都要用到的核心对象。
             builder.RegisterComponent(m_UpdateRunner);
             builder.RegisterComponent(m_ConnectionManager);
             builder.RegisterComponent(m_NetworkManager);
 
-            // The following singletons represent the local representations of the Session that we're in and the user that we are
-            // They can persist longer than the lifetime of the UI in MainMenu where we set up the Session that we create or join
+            // 这些单例代表当前登录用户和当前会话，它们要比某个具体 UI 场景活得更久。
             builder.Register<LocalSessionUser>(Lifetime.Singleton);
             builder.Register<LocalSession>(Lifetime.Singleton);
 
@@ -50,36 +50,35 @@ namespace Unity.BossRoom.ApplicationLifecycle
 
             builder.Register<PersistentGameState>(Lifetime.Singleton);
 
-            // These message channels are essential and persist for the lifetime of the Session and relay services
-            // Registering as instance to prevent code stripping on iOS
+            // 这些消息通道会贯穿整个会话生命周期，因此直接注册为实例。
             builder.RegisterInstance(new MessageChannel<QuitApplicationMessage>()).AsImplementedInterfaces();
             builder.RegisterInstance(new MessageChannel<UnityServiceErrorMessage>()).AsImplementedInterfaces();
             builder.RegisterInstance(new MessageChannel<ConnectStatus>()).AsImplementedInterfaces();
             builder.RegisterInstance(new MessageChannel<DoorStateChangedEventMessage>()).AsImplementedInterfaces();
 
-            // These message channels are essential and persist for the lifetime of the Session and relay services
-            // They are networked so that the clients can subscribe to those messages that are published by the server
+            // 网络消息通道会把服务器发布的消息同步到客户端，方便双方都能订阅同一类事件。
             builder.RegisterComponent(new NetworkedMessageChannel<LifeStateChangedEventMessage>()).AsImplementedInterfaces();
             builder.RegisterComponent(new NetworkedMessageChannel<ConnectionEventMessage>()).AsImplementedInterfaces();
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             builder.RegisterComponent(new NetworkedMessageChannel<CheatUsedMessage>()).AsImplementedInterfaces();
 #endif
 
-            // This message channel is essential and persists for the lifetime of the Session and relay services
+            // 断线重连用的消息通道
             builder.RegisterInstance(new MessageChannel<ReconnectMessage>()).AsImplementedInterfaces();
 
-            // Buffered message channels hold the latest received message in buffer and pass to any new subscribers
+            // 带缓存的消息通道会记住最新一条消息，后来的订阅者也能立刻拿到当前状态
             builder.RegisterInstance(new BufferedMessageChannel<SessionListFetchedMessage>()).AsImplementedInterfaces();
 
-            // All the Session service stuff, bound here so that it persists through scene loads
-            builder.Register<AuthenticationServiceFacade>(Lifetime.Singleton); //a manager entity that allows us to do anonymous authentication with unity services
+            // 会话/认证相关服务也放在根容器里，这样切场景后还在
+            builder.Register<AuthenticationServiceFacade>(Lifetime.Singleton); // 用于匿名登录 Unity Services
 
-            // MultiplayerServicesFacade is registered as entrypoint because it wants a callback after container is built to do it's initialization
+            // 【译】把 MultiplayerServicesFacade 注册为入口点，因为它需要在容器构建完成后再执行初始化回调。
             builder.RegisterEntryPoint<MultiplayerServicesFacade>(Lifetime.Singleton).AsSelf();
         }
 
         private void Start()
         {
+            // 进入游戏后，先拿到一些全局服务，再订阅退出事件
             m_LocalSession = Container.Resolve<LocalSession>();
             m_MultiplayerServicesFacade = Container.Resolve<MultiplayerServicesFacade>();
 
@@ -92,7 +91,9 @@ namespace Unity.BossRoom.ApplicationLifecycle
             Application.wantsToQuit += OnWantToQuit;
             DontDestroyOnLoad(gameObject);
             DontDestroyOnLoad(m_UpdateRunner.gameObject);
+            // 这里把目标帧率固定到 120，避免不同机器上表现差异过大
             Application.targetFrameRate = 120;
+            // 启动后直接进入主菜单场景
             SceneManager.LoadScene("MainMenu");
         }
 
@@ -117,7 +118,7 @@ namespace Unity.BossRoom.ApplicationLifecycle
         /// </summary>
         private IEnumerator LeaveBeforeQuit()
         {
-            // We want to quit anyways, so if anything happens while trying to leave the Session, log the exception then carry on
+            // 退出前先尝试离开会话；即使失败，也不要阻止应用继续退出
             try
             {
                 m_MultiplayerServicesFacade.EndTracking();
@@ -138,6 +139,7 @@ namespace Unity.BossRoom.ApplicationLifecycle
             var canQuit = m_LocalSession != null && string.IsNullOrEmpty(m_LocalSession.SessionID);
             if (!canQuit)
             {
+                // 如果还在会话中，先异步发送 Leave 请求，再真正退出
                 StartCoroutine(LeaveBeforeQuit());
             }
 

@@ -10,39 +10,39 @@ using BlockingMode = Unity.BossRoom.Gameplay.Actions.BlockingModeType;
 namespace Unity.BossRoom.Gameplay.Actions
 {
     /// <summary>
-    /// The abstract parent class that all Actions derive from.
+    /// 【译】所有 Action 的抽象父类。
     /// </summary>
     /// <remarks>
-    /// The Action System is a generalized mechanism for Characters to "do stuff" in a networked way. Actions
-    /// include everything from your basic character attack, to a fancy skill like the Archer's Volley Shot, but also
-    /// include more mundane things like pulling a lever.
-    /// For every ActionLogic enum, there will be one specialization of this class.
-    /// There is only ever one active Action (also called the "blocking" action) at a time on a character, but multiple
-    /// Actions may exist at once, with subsequent Actions pending behind the currently active one, and possibly
-    /// "non-blocking" actions running in the background. See ActionPlayer.cs
+    /// 【译】Action 系统是一个让角色以网络同步方式“做事情”的通用机制。
+    /// 【译】Action 可以是普通攻击、像 Archer 的 Volley Shot 这样的技能，也可以是拉拉杆子这种更普通的交互。
+    /// 【译】每个 ActionLogic 枚举值都会对应这个类的一个具体实现。
+    /// 【译】角色同一时间只能有一个正在生效的 Action（也叫 blocking action），但队列里可以同时存在多个 Action。
+    /// 【译】后续 Action 会排在当前动作后面，同时还可能有“非阻塞”的动作在后台运行。可以去看 ActionPlayer.cs。
     ///
-    /// The flow for Actions is:
-    /// Initially: Start()
-    /// Every frame: ShouldBecomeNonBlocking() (only if Action is blocking), then Update()
-    /// On shutdown: End() or Cancel()
-    /// After shutdown: ChainIntoNewAction()    (only if Action was blocking, and only if End() was called, not Cancel())
+    /// 【译】Action 的生命周期大致是：
+    /// 【译】开始时：Start()
+    /// 【译】每帧：如果当前是阻塞动作，就先调用 ShouldBecomeNonBlocking()，然后调用 Update()
+    /// 【译】结束时：End() 或 Cancel()
+    /// 【译】结束后：ChainIntoNewAction()（仅当它是阻塞动作，并且是 End() 结束，不是 Cancel() 结束时才会调用）
     ///
-    /// Note also that if Start() returns false, no other functions are called on the Action, not even End().
+    /// 【译】还要注意，如果 Start() 返回 false，后续任何函数都不会再被调用，连 End() 也不会。
     ///
-    /// This Action system has not been designed to be generic and extractable to be reused in other projects - keep that in mind when reading through this code.
-    /// A better action system would need to be more accessible and customizable by game designers and allow more design emergence. It'd have ways to define smaller atomic action steps and have a generic way to define and access character data. It would also need to be more performant, as actions would scale with your number of characters and concurrent actions.
+    /// 【译】这个 Action 系统并不是为复用到其他项目而设计的通用框架，阅读时要注意这一点。
+    /// 【译】更好的动作系统应该更方便设计师使用和扩展，能定义更小的原子动作步骤，并且能更通用地定义和读取角色数据。
+    /// 【译】它也应该更高性能，因为动作数量会随着角色数量和并发动作数一起增长。
     /// </remarks>
     public abstract class Action : ScriptableObject
     {
         /// <summary>
-        /// An index into the GameDataSource array of action prototypes. Set at runtime by GameDataSource class.  If action is not itself a prototype - will contain the action id of the prototype reference.
-        /// This field is used to identify actions in a way that can be sent over the network.
+        /// 【译】指向 GameDataSource 中动作原型数组的索引，由 GameDataSource 在运行时设置。
+        /// 【译】如果这个 Action 本身不是原型，那么这里会保存它所引用的原型 id。
+        /// 【译】这个字段会被用来以可网络传输的方式标识动作。
         /// </summary>
         [NonSerialized]
         public ActionID ActionID;
 
         /// <summary>
-        /// The default hit react animation; several different ActionFXs make use of this.
+        /// 【译】默认的受击反应动画，多个不同的 ActionFX 都会用到它。
         /// </summary>
         public const string k_DefaultHitReact = "HitReact1";
 
@@ -50,22 +50,23 @@ namespace Unity.BossRoom.Gameplay.Actions
         protected ActionRequestData m_Data;
 
         /// <summary>
-        /// Time when this Action was started (from Time.time) in seconds. Set by the ActionPlayer or ActionVisualization.
+        /// 【译】这个 Action 开始的时间点（Time.time，单位秒），由 ActionPlayer 或 ActionVisualization 设定。
         /// </summary>
         public float TimeStarted { get; set; }
 
         /// <summary>
-        /// How long the Action has been running (since its Start was called)--in seconds, measured via Time.time.
+        /// 【译】这个 Action 已经运行了多久（从调用 Start 开始计时），单位秒，使用 Time.time 计算。
         /// </summary>
         public float TimeRunning { get { return (Time.time - TimeStarted); } }
 
         /// <summary>
-        /// RequestData we were instantiated with. Value should be treated as readonly.
+        /// 【译】创建这个 Action 时传入的请求数据，应该当作只读使用。
         /// </summary>
+        // 【译】动作启动后会把这份请求数据保存起来，后续运行时只读使用，避免中途被外部改掉。
         public ref ActionRequestData Data => ref m_Data;
 
         /// <summary>
-        /// Data Description for this action.
+        /// 【译】这个动作的数据描述。
         /// </summary>
         public ActionConfig Config;
 
@@ -74,8 +75,9 @@ namespace Unity.BossRoom.Gameplay.Actions
         public bool IsGeneralTargetAction => ActionID == GameDataSource.Instance.GeneralTargetActionPrototype.ActionID;
 
         /// <summary>
-        /// Constructor. The "data" parameter should not be retained after passing in to this method, because we take ownership of its internal memory.
-        /// Needs to be called by the ActionFactory.
+        /// 【译】构造初始化。
+        /// 【译】传入的 data 参数在进入这个方法后不应再被外部保留，因为这里会接管它内部的内存。
+        /// 【译】这个方法需要由 ActionFactory 调用。
         /// </summary>
         public void Initialize(ref ActionRequestData data)
         {
@@ -84,7 +86,7 @@ namespace Unity.BossRoom.Gameplay.Actions
         }
 
         /// <summary>
-        /// This function resets the action before returning it to the pool
+        /// 【译】在把动作对象放回对象池之前，先重置它的状态。
         /// </summary>
         public virtual void Reset()
         {
@@ -94,29 +96,30 @@ namespace Unity.BossRoom.Gameplay.Actions
         }
 
         /// <summary>
-        /// Called when the Action starts actually playing (which may be after it is created, because of queueing).
+        /// 【译】当 Action 真正开始播放时调用（由于排队，它可能晚于创建时刻）。
         /// </summary>
-        /// <returns>false if the action decided it doesn't want to run after all, true otherwise. </returns>
+        /// <returns>【译】如果这个动作最终决定不执行了就返回 false，否则返回 true。</returns>
         public abstract bool OnStart(ServerCharacter serverCharacter);
 
 
         /// <summary>
-        /// Called each frame while the action is running.
+        /// 【译】动作运行期间每帧都会调用。
         /// </summary>
-        /// <returns>true to keep running, false to stop. The Action will stop by default when its duration expires, if it has a duration set. </returns>
+        /// <returns>【译】返回 true 表示继续运行，返回 false 表示停止。如果动作设置了持续时间，到期后会默认停止。</returns>
         public abstract bool OnUpdate(ServerCharacter clientCharacter);
 
         /// <summary>
-        /// Called each frame (before OnUpdate()) for the active ("blocking") Action, asking if it should become a background Action.
+        /// 【译】对当前活跃的“阻塞动作”来说，每帧会先调用这个函数，询问它是否应该转入后台。
         /// </summary>
-        /// <returns>true to become a non-blocking Action, false to remain a blocking Action</returns>
+        /// <returns>【译】返回 true 表示转为非阻塞动作，返回 false 表示继续保持阻塞状态。</returns>
         public virtual bool ShouldBecomeNonBlocking()
         {
+            // 某些动作只在“准备阶段”阻塞，执行完关键动作后就可以转入后台继续播放效果。
             return Config.BlockingMode == BlockingModeType.OnlyDuringExecTime ? TimeRunning >= Config.ExecTimeSeconds : false;
         }
 
         /// <summary>
-        /// Called when the Action ends naturally. By default just calls Cancel()
+        /// 【译】当 Action 自然结束时调用。默认实现只是调用 Cancel()。
         /// </summary>
         public virtual void End(ServerCharacter serverCharacter)
         {
@@ -124,24 +127,26 @@ namespace Unity.BossRoom.Gameplay.Actions
         }
 
         /// <summary>
-        /// This will get called when the Action gets canceled. The Action should clean up any ongoing effects at this point.
-        /// (e.g. an Action that involves moving should cancel the current active move).
+        /// 【译】当 Action 被取消时会调用这里。
+        /// 【译】动作应该在这里清理所有仍在进行中的效果。
+        /// 【译】例如，涉及移动的动作应该取消当前正在进行的移动。
         /// </summary>
         public virtual void Cancel(ServerCharacter serverCharacter) { }
 
         /// <summary>
-        /// Called *AFTER* End(). At this point, the Action has ended, meaning its Update() etc. functions will never be
-        /// called again. If the Action wants to immediately segue into a different Action, it can do so here. The new
-        /// Action will take effect in the next Update().
+        /// 【译】在 End() 之后调用。
+        /// 【译】此时 Action 已经结束，意味着它的 Update() 等函数将不再被调用。
+        /// 【译】如果这个 Action 想立刻切换到另一个 Action，可以在这里做。
+        /// 【译】新的 Action 会在下一次 Update() 中生效。
         ///
-        /// Note that this is not called on prematurely cancelled Actions, only on ones that have their End() called.
+        /// 【译】注意：这个方法不会在“提前被取消”的 Action 上调用，只有 End() 正常结束的动作才会走到这里。
         /// </summary>
-        /// <param name="newAction">the new Action to immediately transition to</param>
-        /// <returns>true if there's a new action, false otherwise</returns>
+        /// <param name="newAction">【译】要立即切换到的新 Action</param>
+        /// <returns>【译】如果有新的动作则返回 true，否则返回 false</returns>
         public virtual bool ChainIntoNewAction(ref ActionRequestData newAction) { return false; }
 
         /// <summary>
-        /// Called on the active ("blocking") Action when this character collides with another.
+        /// 【译】当角色与其他物体发生碰撞时，会调用当前活跃的“阻塞动作”。
         /// </summary>
         /// <param name="serverCharacter"></param>
         /// <param name="collision"></param>
@@ -149,29 +154,27 @@ namespace Unity.BossRoom.Gameplay.Actions
 
         public enum BuffableValue
         {
-            PercentHealingReceived, // unbuffed value is 1.0. Reducing to 0 would mean "no healing". 2 would mean "double healing"
-            PercentDamageReceived,  // unbuffed value is 1.0. Reducing to 0 would mean "no damage". 2 would mean "double damage"
-            ChanceToStunTramplers,  // unbuffed value is 0. If > 0, is the chance that someone trampling this character becomes stunned
+            PercentHealingReceived, // 【译】未加成时是 1.0，0 表示不回血，2 表示治疗翻倍
+            PercentDamageReceived,  // 【译】未加成时是 1.0，0 表示免伤，2 表示受到双倍伤害
+            ChanceToStunTramplers,  // 【译】未加成时是 0，如果大于 0，则表示被踩踏时有多大概率让踩踏者眩晕
         }
 
         /// <summary>
-        /// Called on all active Actions to give them a chance to alter the outcome of a gameplay calculation. Note
-        /// that this is used for both "buffs" (positive gameplay benefits) and "debuffs" (gameplay penalties).
+        /// 【译】让所有活跃中的 Action 都有机会改变某个游戏计算结果。
+        /// 【译】这里既会处理正面效果（buff），也会处理负面效果（debuff）。
         /// </summary>
         /// <remarks>
-        /// In a more complex game with lots of buffs and debuffs, this function might be replaced by a separate
-        /// BuffRegistry component. This would let you add fancier features, such as defining which effects
-        /// "stack" with other ones, and could provide a UI that lists which are affecting each character
-        /// and for how long.
+        /// 【译】如果游戏更复杂、buff/debuff 更多，这个函数可能会被单独的 BuffRegistry 组件取代。
+        /// 【译】那样可以加入更高级的特性，比如定义哪些效果可以“叠加”，并显示每个角色当前受哪些效果影响以及持续多久。
         /// </remarks>
-        /// <param name="buffType">Which gameplay variable being calculated</param>
-        /// <param name="orgValue">The original ("un-buffed") value</param>
-        /// <param name="buffedValue">The final ("buffed") value</param>
+        /// <param name="buffType">【译】当前正在计算哪一种游戏变量</param>
+        /// <param name="orgValue">【译】原始的（未加成的）数值</param>
+        /// <param name="buffedValue">【译】最终的（已加成的）数值</param>
         public virtual void BuffValue(BuffableValue buffType, ref float buffedValue) { }
 
         /// <summary>
-        /// Static utility function that returns the default ("un-buffed") value for a BuffableValue.
-        /// (This just ensures that there's one place for all these constants.)
+        /// 【译】返回某个 BuffableValue 的默认（未加成）值的静态工具函数。
+        /// 【译】这样做只是为了让这些常量集中在一个地方。
         /// </summary>
         public static float GetUnbuffedValue(Action.BuffableValue buffType)
         {
@@ -189,14 +192,14 @@ namespace Unity.BossRoom.Gameplay.Actions
             AttackedByEnemy,
             Healed,
             StoppedChargingUp,
-            UsingAttackAction, // called immediately before we perform the attack Action
+            UsingAttackAction, // 【译】在真正执行攻击 Action 之前立即调用
         }
 
         /// <summary>
-        /// Called on active Actions to let them know when a notable gameplay event happens.
+        /// 【译】当有重要的游戏事件发生时，会通知当前活跃的 Action。
         /// </summary>
         /// <remarks>
-        /// When a GameplayActivity of AttackedByEnemy or Healed happens, OnGameplayAction() is called BEFORE BuffValue() is called.
+        /// 【译】当 GameplayActivity 为 AttackedByEnemy 或 Healed 时，OnGameplayAction() 会在 BuffValue() 之前被调用。
         /// </remarks>
         /// <param name="serverCharacter"></param>
         /// <param name="activityType"></param>
@@ -205,19 +208,20 @@ namespace Unity.BossRoom.Gameplay.Actions
 
 
         /// <summary>
-        /// True if this actionFX began running immediately, prior to getting a confirmation from the server.
+        /// 【译】如果这个 actionFX 在服务器确认之前就已经立刻开始运行，则为 true。
         /// </summary>
         public bool AnticipatedClient { get; protected set; }
 
         /// <summary>
-        /// Starts the ActionFX. Derived classes may return false if they wish to end immediately without their Update being called.
+        /// 【译】开始播放 ActionFX。派生类如果想立刻结束而不进入 Update，可以返回 false。
         /// </summary>
         /// <remarks>
-        /// Derived class should be sure to call base.OnStart() in their implementation, but note that this resets "Anticipated" to false.
+        /// 【译】派生类在实现时应该记得调用 base.OnStart()，但要注意这会把“预判状态”重置为 false。
         /// </remarks>
-        /// <returns>true to play, false to be immediately cleaned up.</returns>
+        /// <returns>【译】返回 true 表示继续播放，返回 false 表示立刻清理。</returns>
         public virtual bool OnStartClient(ClientCharacter clientCharacter)
         {
+            // 客户端真正开始播放动作时，就不再把它当成“预判中的动作”了。
             AnticipatedClient = false; //once you start for real you are no longer an anticipated action.
             TimeStarted = UnityEngine.Time.time;
             return true;
@@ -228,10 +232,9 @@ namespace Unity.BossRoom.Gameplay.Actions
             return ActionConclusion.Continue;
         }
         /// <summary>
-        /// End is always called when the ActionFX finishes playing. This is a good place for derived classes to put
-        /// wrap-up logic (perhaps playing the "puff of smoke" that rises when a persistent fire AOE goes away). Derived
-        /// classes should aren't required to call base.End(); by default, the method just calls 'Cancel', to handle the
-        /// common case where Cancel and End do the same thing.
+        /// 【译】当 ActionFX 播放完毕时总会调用 End。
+        /// 【译】这很适合派生类放收尾逻辑，比如持续火焰 AOE 消失时播放一团烟雾的效果。
+        /// 【译】派生类不一定要调用 base.End()；默认实现只是调用 Cancel，用来处理 Cancel 和 End 行为相同的常见情况。
         /// </summary>
         public virtual void EndClient(ClientCharacter clientCharacter)
         {
@@ -239,27 +242,26 @@ namespace Unity.BossRoom.Gameplay.Actions
         }
 
         /// <summary>
-        /// Cancel is called when an ActionFX is interrupted prematurely. It is kept logically distinct from End to allow
-        /// for the possibility that an Action might want to play something different if it is interrupted, rather than
-        /// completing. For example, a "ChargeShot" action might want to emit a projectile object in its End method, but
-        /// instead play a "Stagger" animation in its Cancel method.
+        /// 【译】当 ActionFX 被提前打断时会调用 Cancel。
+        /// 【译】它和 End 在逻辑上是分开的，因为某些动作在“中断”和“正常完成”时可能想播放不同内容。
+        /// 【译】例如，ChargeShot 可能在 End 时发射投射物，但在 Cancel 时改播一个“踉跄”动画。
         /// </summary>
         public virtual void CancelClient(ClientCharacter clientCharacter) { }
 
         /// <summary>
-        /// Should this ActionFX be created anticipatively on the owning client?
+        /// 【译】这个 ActionFX 是否应该在拥有者客户端上提前创建？
         /// </summary>
-        /// <param name="clientCharacter">The ActionVisualization that would be playing this ActionFX.</param>
-        /// <param name="data">The request being sent to the server</param>
-        /// <returns>If true ActionVisualization should pre-emptively create the ActionFX on the owning client, before hearing back from the server.</returns>
+        /// <param name="clientCharacter">【译】将要播放这个 ActionFX 的 ActionVisualization。</param>
+        /// <param name="data">【译】发送给服务器的请求</param>
+        /// <returns>【译】如果返回 true，ActionVisualization 就应该在收到服务器回复前先预创建这个 ActionFX。</returns>
         public static bool ShouldClientAnticipate(ClientCharacter clientCharacter, ref ActionRequestData data)
         {
             if (!clientCharacter.CanPerformActions) { return false; }
 
             var actionDescription = GameDataSource.Instance.GetActionPrototypeByID(data.ActionID).Config;
 
-            //for actions with ShouldClose set, we check our range locally. If we are out of range, we shouldn't anticipate, as we will
-            //need to execute a ChaseAction (synthesized on the server) prior to actually playing the skill.
+            // 对于需要先靠近目标的动作，客户端先本地判断距离。
+            // 如果距离不够，就不要提前播放，因为服务器会先合成一个 ChaseAction 去追过去。
             bool isTargetEligible = true;
             if (data.ShouldClose == true)
             {
@@ -271,43 +273,42 @@ namespace Unity.BossRoom.Gameplay.Actions
                 }
             }
 
-            //at present all Actionts anticipate except for the Target action, which runs a single instance on the client and is
-            //responsible for action anticipation on its own.
+            // 目前大部分动作都允许客户端先预演，只有 Target 动作自己负责预判逻辑。
             return isTargetEligible && actionDescription.Logic != ActionLogic.Target;
         }
 
         /// <summary>
-        /// Called when the visualization receives an animation event.
+        /// 【译】当可视化对象收到动画事件时调用。
         /// </summary>
         public virtual void OnAnimEventClient(ClientCharacter clientCharacter, string id) { }
 
         /// <summary>
-        /// Called when this action has finished "charging up". (Which is only meaningful for a
-        /// few types of actions -- it is not called for other actions.)
+        /// 【译】当这个动作完成“蓄力”时调用。
+        /// 【译】这只对少数几种动作有意义，其他动作不会调用这个方法。
         /// </summary>
-        /// <param name="finalChargeUpPercentage"></param>
+        /// <param name="finalChargeUpPercentage">【译】最终蓄力百分比</param>
         public virtual void OnStoppedChargingUpClient(ClientCharacter clientCharacter, float finalChargeUpPercentage) { }
 
         /// <summary>
-        /// Utility function that instantiates all the graphics in the Spawns list.
-        /// If parentToOrigin is true, the new graphics are parented to the origin Transform.
-        /// If false, they are positioned/oriented the same way but are not parented.
+        /// 【译】实例化 Spawns 列表中的所有图形对象的工具函数。
+        /// 【译】如果 parentToOrigin 为 true，新生成的图形会挂到 origin Transform 下面。
+        /// 【译】如果为 false，它们会保持相同的位置和朝向，但不会成为子物体。
         /// </summary>
         protected List<SpecialFXGraphic> InstantiateSpecialFXGraphics(Transform origin, bool parentToOrigin)
         {
             var returnList = new List<SpecialFXGraphic>();
             foreach (var prefab in Config.Spawns)
             {
-                if (!prefab) { continue; } // skip blank entries in our prefab list
+                if (!prefab) { continue; } // 【译】跳过 prefab 列表中的空项
                 returnList.Add(InstantiateSpecialFXGraphic(prefab, origin, parentToOrigin));
             }
             return returnList;
         }
 
         /// <summary>
-        /// Utility function that instantiates one of the graphics from the Spawns list.
-        /// If parentToOrigin is true, the new graphics are parented to the origin Transform.
-        /// If false, they are positioned/oriented the same way but are not parented.
+        /// 【译】实例化 Spawns 列表中某一个图形对象的工具函数。
+        /// 【译】如果 parentToOrigin 为 true，新图形会挂到 origin Transform 下面。
+        /// 【译】如果为 false，它们会保持相同的位置和朝向，但不会成为子物体。
         /// </summary>
         protected SpecialFXGraphic InstantiateSpecialFXGraphic(GameObject prefab, Transform origin, bool parentToOrigin)
         {
@@ -320,9 +321,9 @@ namespace Unity.BossRoom.Gameplay.Actions
         }
 
         /// <summary>
-        /// Called when the action is being "anticipated" on the client. For example, if you are the owner of a tank and you swing your hammer,
-        /// you get this call immediately on the client, before the server round-trip.
-        /// Overriders should always call the base class in their implementation!
+        /// 【译】当动作在客户端处于“预判”状态时调用。
+        /// 【译】例如，如果你是坦克玩家并挥动锤子，这个调用会在客户端立刻触发，早于服务器往返确认。
+        /// 【译】重写这个方法时应该始终调用基类实现。
         /// </summary>
         public virtual void AnticipateActionClient(ClientCharacter clientCharacter)
         {
